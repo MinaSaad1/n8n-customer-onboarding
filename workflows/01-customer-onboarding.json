@@ -1,0 +1,398 @@
+{
+  "name": "NTF 10 Customer Onboarding Flow",
+  "tags": [
+    {
+      "name": "NTF-Playbook"
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "sticky-readme",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -520
+      ],
+      "parameters": {
+        "content": "## NTF 10 Customer Onboarding Flow\n\n**Trigger:** Webhook, new CRM customer event (or manual trigger)\n\n**30-day sequence:**\n- Day 0: Welcome email immediately\n- Day 3: First check-in plus tips email\n- Day 7: Short friction survey\n- Day 14: If survey score low, flag to inbox (human needed)\n- Day 30: NPS survey plus referral ask if NPS high\n\n**Setup:**\n- Connect Gmail OAuth credential\n- Webhook receives: { name, email, company, plan }\n- Edit email templates in each Send Email node\n- Day 14 and Day 30 branches use IF nodes based on survey responses\n- For survey responses: use a separate webhook-triggered workflow or Typeform/Tally integration",
+        "height": 400,
+        "width": 560,
+        "color": 6
+      }
+    },
+    {
+      "id": "webhook-trigger",
+      "name": "New Customer Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "customer-onboarding-webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "customer-onboarding",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "extract-customer",
+      "name": "Extract Customer Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "name",
+              "name": "name",
+              "value": "={{ $json.body.name }}",
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "name": "email",
+              "value": "={{ $json.body.email }}",
+              "type": "string"
+            },
+            {
+              "id": "company",
+              "name": "company",
+              "value": "={{ $json.body.company || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "plan",
+              "name": "plan",
+              "value": "={{ $json.body.plan || 'Standard' }}",
+              "type": "string"
+            },
+            {
+              "id": "sender_name",
+              "name": "sender_name",
+              "value": "YOUR_NAME",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        -160
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true }) }}"
+      }
+    },
+    {
+      "id": "day-0-welcome",
+      "name": "Day 0 Welcome Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Welcome, {{ $json.name }}, here's how to get started",
+        "message": "=Hi {{ $json.name }},\n\nWelcome, and thank you for joining.\n\nHere's what to do first:\n1. [STEP 1, most important action]\n2. [STEP 2, second most important action]\n3. [STEP 3, quick win]\n\nIf you run into anything, reply to this email. I read every reply.\n\n{{ $json.sender_name }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "id": "wait-3-days",
+      "name": "Wait 3 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "unit": "days",
+        "amount": 3,
+        "options": {}
+      }
+    },
+    {
+      "id": "day-3-checkin",
+      "name": "Day 3 Check-in Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Quick check-in, how's it going?",
+        "message": "=Hi {{ $json.name }},\n\nThree days in. How are things going?\n\nHere are a few things customers find most useful at this stage:\n* [TIP 1]\n* [TIP 2]\n* [TIP 3]\n\nAnything unclear or not working as expected? Hit reply.\n\n{{ $json.sender_name }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "id": "wait-4-more-days",
+      "name": "Wait 4 More Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "unit": "days",
+        "amount": 4,
+        "options": {}
+      }
+    },
+    {
+      "id": "day-7-survey",
+      "name": "Day 7 Friction Survey",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.email }}",
+        "subject": "=One quick question (takes 30 seconds)",
+        "message": "=Hi {{ $json.name }},\n\nYou're a week in. One question:\n\nOn a scale of 1-10, how likely are you to keep using [PRODUCT]?\n\nReply with just a number. If it's below 7, tell me why in one sentence. I'll fix it.\n\n{{ $json.sender_name }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "id": "wait-7-more-days",
+      "name": "Wait 7 More Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "unit": "days",
+        "amount": 7,
+        "options": {}
+      }
+    },
+    {
+      "id": "day-14-flag",
+      "name": "Day 14 Flag for Human Touch",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.sender_name }}@YOUR_DOMAIN.com",
+        "subject": "=[Action needed] 14-day check-in for {{ $json.name }} ({{ $json.company }})",
+        "message": "=Customer {{ $json.name }} ({{ $json.email }}) at {{ $json.company }} has been active for 14 days on the {{ $json.plan }} plan.\n\nThis is your manual touchpoint reminder. Reach out personally today.\n\nSuggested talking points:\n- What have they achieved so far?\n- Any friction points they haven't mentioned?\n- Are there features they haven't discovered yet?\n\nRemember: a proactive call here prevents a cancellation at day 30.",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "id": "wait-16-more-days",
+      "name": "Wait 16 More Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        0
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "unit": "days",
+        "amount": 16,
+        "options": {}
+      }
+    },
+    {
+      "id": "day-30-nps",
+      "name": "Day 30 NPS plus Referral",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2200,
+        0
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.email }}",
+        "subject": "=30 days in, two quick things",
+        "message": "=Hi {{ $json.name }},\n\nYou've been with us for 30 days. Two things:\n\n1. How likely are you to recommend us to someone you know? Reply with a number from 0 to 10.\n\n2. If there's one person in your network who would benefit from [PRODUCT], I'd love an introduction. No pressure, just if someone comes to mind.\n\nThank you for being a customer.\n\n{{ $json.sender_name }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "New Customer Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Customer Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Customer Data": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Day 0 Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Day 0 Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Wait 3 Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3 Days": {
+      "main": [
+        [
+          {
+            "node": "Day 3 Check-in Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Day 3 Check-in Email": {
+      "main": [
+        [
+          {
+            "node": "Wait 4 More Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 4 More Days": {
+      "main": [
+        [
+          {
+            "node": "Day 7 Friction Survey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Day 7 Friction Survey": {
+      "main": [
+        [
+          {
+            "node": "Wait 7 More Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 7 More Days": {
+      "main": [
+        [
+          {
+            "node": "Day 14 Flag for Human Touch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Day 14 Flag for Human Touch": {
+      "main": [
+        [
+          {
+            "node": "Wait 16 More Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 16 More Days": {
+      "main": [
+        [
+          {
+            "node": "Day 30 NPS plus Referral",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
