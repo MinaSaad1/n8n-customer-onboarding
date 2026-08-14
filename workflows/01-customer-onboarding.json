@@ -1,8 +1,8 @@
 {
-  "name": "NTF 10 Customer Onboarding Flow",
+  "name": "Customer Onboarding Flow",
   "tags": [
     {
-      "name": "NTF-Playbook"
+      "name": "n8n-ai-agents"
     }
   ],
   "settings": {
@@ -19,7 +19,7 @@
         -520
       ],
       "parameters": {
-        "content": "## NTF 10 Customer Onboarding Flow\n\n**Trigger:** Webhook, new CRM customer event (or manual trigger)\n\n**30-day sequence:**\n- Day 0: Welcome email immediately\n- Day 3: First check-in plus tips email\n- Day 7: Short friction survey\n- Day 14: If survey score low, flag to inbox (human needed)\n- Day 30: NPS survey plus referral ask if NPS high\n\n**Setup:**\n- Connect Gmail OAuth credential\n- Webhook receives: { name, email, company, plan }\n- Edit email templates in each Send Email node\n- Day 14 and Day 30 branches use IF nodes based on survey responses\n- For survey responses: use a separate webhook-triggered workflow or Typeform/Tally integration",
+        "content": "## Customer Onboarding Flow\n\n**Trigger:** Webhook, new CRM customer event (or manual trigger)\n\n**30-day sequence:**\n- Day 0: Welcome email immediately\n- Day 3: First check-in plus tips email\n- Day 7: Short friction survey\n- Day 14: If survey score low, flag to inbox (human needed)\n- Day 30: NPS survey plus referral ask if NPS high\n\n**Setup:**\n- Connect Gmail OAuth credential\n- Webhook receives: { name, email, company, plan }\n- Edit email templates in each Send Email node\n- Day 14 and Day 30 branches use IF nodes based on survey responses\n- For survey responses: use a separate webhook-triggered workflow or Typeform/Tally integration",
         "height": 400,
         "width": 560,
         "color": 6
